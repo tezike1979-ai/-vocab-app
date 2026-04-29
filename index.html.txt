@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>英単語アプリ</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body {
+  margin:0;
+  font-family:sans-serif;
+  background:#f0f0f0;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+}
+.card {
+  width:90%;
+  max-width:400px;
+  height:320px;
+  background:white;
+  border-radius:20px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  box-shadow:0 10px 30px rgba(0,0,0,0.2);
+  touch-action:none;
+}
+h2 { font-size:28px; }
+p { color:#666; }
+.status {
+  position:absolute;
+  top:20px;
+}
+</style>
+</head>
+<body>
+
+<div class="status" id="status"></div>
+
+<div class="card" id="card">
+  <h2 id="word">Loading...</h2>
+  <p id="meaning"></p>
+</div>
+
+<script>
+const url1 = "https://docs.google.com/spreadsheets/d/15BpwIs7lGNiyUAh_LtCcEqYiuLPibMhjpPOdyzjvX50/export?format=csv&gid=0";
+const url2 = "https://docs.google.com/spreadsheets/d/15BpwIs7lGNiyUAh_LtCcEqYiuLPibMhjpPOdyzjvX50/export?format=csv&gid=330002620";
+
+let words = [];
+let index = 0;
+let startX = 0;
+let stats = JSON.parse(localStorage.getItem("stats") || "{}");
+
+async function loadCSV(url){
+  const res = await fetch(url);
+  const text = await res.text();
+  return text.split("\n").slice(1).map(line=>{
+    const [word, meaning] = line.split(",");
+    return {word, meaning};
+  });
+}
+
+async function init(){
+  const data1 = await loadCSV(url1);
+  const data2 = await loadCSV(url2);
+
+  words = [...data1, ...data2].filter(w => w.word);
+  shuffle(words);
+  show();
+}
+
+function show(){
+  const w = words[index];
+  document.getElementById("word").innerText = w.word;
+  document.getElementById("meaning").innerText = "";
+  updateStatus();
+}
+
+function updateStatus(){
+  const known = Object.values(stats).filter(v=>v===1).length;
+  document.getElementById("status").innerText =
+    `覚えた: ${known}語`;
+}
+
+function next(){
+  index = (index+1) % words.length;
+  show();
+}
+
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(Math.random()* (i+1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+function speak(){
+  const u = new SpeechSynthesisUtterance(words[index].word);
+  u.lang = "en-US";
+  speechSynthesis.speak(u);
+}
+
+const card = document.getElementById("card");
+
+card.addEventListener("touchstart", e=>{
+  startX = e.touches[0].clientX;
+});
+
+card.addEventListener("touchend", e=>{
+  let diff = e.changedTouches[0].clientX - startX;
+  const current = words[index].word;
+
+  if(diff > 80){
+    stats[current] = 1;
+    localStorage.setItem("stats", JSON.stringify(stats));
+    next();
+  } else if(diff < -80){
+    stats[current] = 0;
+    words.push(words[index]);
+    localStorage.setItem("stats", JSON.stringify(stats));
+    next();
+  }
+});
+
+card.addEventListener("click", ()=>{
+  document.getElementById("meaning").innerText = words[index].meaning;
+  speak();
+});
+
+// Service Worker登録
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js');
+}
+
+init();
+</script>
+
+</body>
+</html>
