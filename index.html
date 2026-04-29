@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>英単語帳</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: rgba(255,255,255,0.08);
+    --text: #f0ede8;
+    --muted: rgba(240,237,232,0.45);
+    --green: #3ecf8e;
+    --red: #f56565;
+    --accent: #c8b8ff;
+    --accent-dim: rgba(200,184,255,0.12);
+    --radius: 24px;
+  }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .screen { display: none; flex-direction: column; height: 100dvh; }
+  .screen.active { display: flex; }
+
+  /* ══ MENU ══ */
+  .menu-header { padding: 48px 24px 8px; flex-shrink: 0; }
+  .menu-title { font-family: 'DM Serif Display', serif; font-size: 32px; color: var(--text); margin-bottom: 4px; }
+  .menu-sub { font-size: 13px; color: var(--muted); }
+  .menu-body { flex: 1; overflow-y: auto; padding: 20px 24px 32px; display: flex; flex-direction: column; gap: 12px; }
+  .menu-section-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin: 8px 0 4px; }
+  .menu-card {
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: 20px; padding: 18px 20px; cursor: pointer;
+    display: flex; align-items: center; gap: 16px;
+    transition: background 0.15s, transform 0.1s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .menu-card:active { background: var(--surface2); transform: scale(0.98); }
+  .menu-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .menu-icon.purple { background: var(--accent-dim); }
+  .menu-icon.green  { background: rgba(62,207,142,0.12); }
+  .menu-icon.amber  { background: rgba(246,173,85,0.12); }
+  .menu-icon.red    { background: rgba(245,101,101,0.12); }
+  .menu-text { flex: 1; }
+  .menu-name { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+  .menu-desc { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .menu-badge { font-size: 12px; font-weight: 600; color: var(--muted); background: var(--surface2); border-radius: 10px; padding: 3px 8px; flex-shrink: 0; }
+  .menu-badge.red-badge { color: var(--red); background: rgba(245,101,101,0.12); }
+  .stats-bar {
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: 16px; padding: 14px 18px;
+    display: flex; justify-content: space-around; margin-bottom: 4px;
+  }
+  .sbar-item { text-align: center; }
+  .sbar-num { font-size: 20px; font-weight: 600; }
+  .sbar-num.g { color: var(--green); }
+  .sbar-num.r { color: var(--red); }
+  .sbar-num.a { color: var(--muted); }
+  .sbar-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ══ STUDY ══ */
+  .header { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 8px; flex-shrink: 0; }
+  .back-btn { font-size: 13px; font-weight: 500; color: var(--accent); background: var(--accent-dim); border: none; border-radius: 20px; padding: 6px 14px; cursor: pointer; }
+  .session-badge { font-size: 12px; font-weight: 500; color: var(--accent); background: var(--accent-dim); border-radius: 20px; padding: 4px 10px; }
+  .mode-label { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .progress-wrap { padding: 0 20px 10px; flex-shrink: 0; }
+  .progress-bar { height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .stats { display: flex; gap: 10px; padding: 0 20px 10px; flex-shrink: 0; }
+  .stat { flex: 1; background: var(--surface); border: 0.5px solid var(--border); border-radius: 14px; padding: 10px 12px; text-align: center; }
+  .stat-num { font-size: 20px; font-weight: 600; line-height: 1; }
+  .stat-num.green { color: var(--green); }
+  .stat-num.red   { color: var(--red); }
+  .stat-num.gray  { color: var(--muted); }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .card-area { flex: 1; display: flex; align-items: center; justify-content: center; padding: 0 20px; position: relative; overflow: hidden; }
+  .card {
+    width: 100%; max-width: 400px;
+    background: var(--surface); border: 0.5px solid var(--border);
+    border-radius: var(--radius); padding: 36px 28px; text-align: center;
+    position: relative; cursor: pointer; user-select: none;
+    transition: transform 0.08s ease; will-change: transform;
+  }
+  .card:active { transform: scale(0.98); }
+  .card-tag { display: inline-block; font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 20px; }
+  .word { font-family: 'DM Serif Display', serif; font-size: 38px; line-height: 1.15; color: var(--text); margin-bottom: 8px; word-break: break-word; }
+  .phonetic { font-size: 15px; color: var(--muted); min-height: 20px; margin-bottom: 20px; }
+  .meaning-wrap { min-height: 60px; display: flex; align-items: center; justify-content: center; }
+  .meaning { font-size: 18px; font-weight: 500; color: var(--accent); opacity: 0; transform: translateY(6px); transition: opacity 0.25s ease, transform 0.25s ease; line-height: 1.5; }
+  .meaning.visible { opacity: 1; transform: translateY(0); }
+  .tap-hint { font-size: 12px; color: var(--muted); margin-top: 20px; transition: opacity 0.3s; }
+  .swipe-overlay { position: absolute; inset: 0; border-radius: var(--radius); opacity: 0; display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: 700; transition: opacity 0.1s; pointer-events: none; }
+  .swipe-overlay.good { background: rgba(62,207,142,0.15); color: var(--green); border: 2px solid rgba(62,207,142,0.4); }
+  .swipe-overlay.bad  { background: rgba(245,101,101,0.12); color: var(--red);   border: 2px solid rgba(245,101,101,0.3); }
+  .swipe-guide { display: flex; justify-content: space-between; align-items: center; padding: 6px 20px; flex-shrink: 0; }
+  .guide-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }
+  .guide-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .guide-icon.bad  { background: rgba(245,101,101,0.15); }
+  .guide-icon.good { background: rgba(62,207,142,0.15); }
+  .actions { display: flex; gap: 12px; padding: 6px 20px 20px; flex-shrink: 0; }
+  .btn { flex: 1; border: none; border-radius: 16px; padding: 16px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.1s; }
+  .btn:active { transform: scale(0.96); opacity: 0.85; }
+  .btn-bad  { background: rgba(245,101,101,0.15); color: var(--red); }
+  .btn-good { background: rgba(62,207,142,0.15);  color: var(--green); }
+  .btn-skip { background: var(--surface2); color: var(--muted); flex: 0 0 60px; }
+
+  /* ══ LOADING / DONE ══ */
+  .loading { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 99; }
+  .spinner { width: 36px; height: 36px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .done-screen { position: fixed; inset: 0; background: var(--bg); flex-direction: column; align-items: center; justify-content: center; gap: 12px; display: none; }
+  .done-emoji { font-size: 64px; }
+  .done-title { font-family: 'DM Serif Display', serif; font-size: 28px; color: var(--text); }
+  .done-sub { font-size: 15px; color: var(--muted); text-align: center; padding: 0 20px; line-height: 1.8; white-space: pre-line; }
+  .done-btns { display: flex; gap: 12px; margin-top: 20px; }
+  .btn-done { border: none; border-radius: 16px; padding: 14px 24px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .btn-done.accent  { background: var(--accent-dim); color: var(--accent); }
+  .btn-done.surface { background: var(--surface); color: var(--muted); border: 0.5px solid var(--border); }
+
+  /* ══ ANIMATIONS ══ */
+  @keyframes slideLeft  { from { transform: translateX(0); opacity:1; } to { transform: translateX(-120%); opacity:0; } }
+  @keyframes slideRight { from { transform: translateX(0); opacity:1; } to { transform: translateX(120%);  opacity:0; } }
+  @keyframes slideIn    { from { transform: translateX(40px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+  .anim-left  { animation: slideLeft  0.3s ease forwards; }
+  .anim-right { animation: slideRight 0.3s ease forwards; }
+  .anim-in    { animation: slideIn    0.3s ease forwards; }
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <p style="font-size:14px;color:var(--muted)">単語を読み込み中…</p>
+</div>
+
+<div class="done-screen" id="doneScreen">
+  <div class="done-emoji">🎉</div>
+  <div class="done-title">セッション完了！</div>
+  <p class="done-sub" id="doneMsg"></p>
+  <div class="done-btns">
+    <button class="btn-done surface" onclick="goMenu()">メニューへ</button>
+    <button class="btn-done accent"  onclick="restartSame()">もう一度</button>
+  </div>
+</div>
+
+<!-- ══ MENU SCREEN ══ -->
+<div class="screen active" id="menuScreen">
+  <div class="menu-header">
+    <div class="menu-title">単語帳</div>
+    <div class="menu-sub" id="menuSub">読み込み中…</div>
+  </div>
+  <div class="menu-body">
+    <div class="stats-bar">
+      <div class="sbar-item"><div class="sbar-num g" id="totalKnown">0</div><div class="sbar-label">覚えた</div></div>
+      <div class="sbar-item"><div class="sbar-num r" id="totalRetry">0</div><div class="sbar-label">要復習</div></div>
+      <div class="sbar-item"><div class="sbar-num a" id="totalAll">0</div><div class="sbar-label">全単語</div></div>
+    </div>
+
+    <div class="menu-section-label">問題数を選ぶ</div>
+
+    <div class="menu-card" onclick="startMode('random10')">
+      <div class="menu-icon purple">🎲</div>
+      <div class="menu-text">
+        <div class="menu-name">ランダム 10問</div>
+        <div class="menu-desc">毎回違う10問でサクッと練習</div>
+      </div>
+      <div class="menu-badge">10</div>
+    </div>
+
+    <div class="menu-card" onclick="startMode('random30')">
+      <div class="menu-icon green">📚</div>
+      <div class="menu-text">
+        <div class="menu-name">ランダム 30問</div>
+        <div class="menu-desc">少し多めにまとめて学習</div>
+      </div>
+      <div class="menu-badge">30</div>
+    </div>
+
+    <div class="menu-card" onclick="startMode('all')">
+      <div class="menu-icon amber">🏆</div>
+      <div class="menu-text">
+        <div class="menu-name">全単語チャレンジ</div>
+        <div class="menu-desc">全問まとめて挑戦</div>
+      </div>
+      <div class="menu-badge" id="allBadge">—</div>
+    </div>
+
+    <div class="menu-section-label">苦手克服</div>
+
+    <div class="menu-card" onclick="startMode('retry')">
+      <div class="menu-icon red">🔥</div>
+      <div class="menu-text">
+        <div class="menu-name">要復習のみ</div>
+        <div class="menu-desc">「← 復習」にした単語を集中練習</div>
+      </div>
+      <div class="menu-badge red-badge" id="retryBadge">0</div>
+    </div>
+
+    <div class="menu-card" onclick="startMode('unknown')">
+      <div class="menu-icon purple">❓</div>
+      <div class="menu-text">
+        <div class="menu-name">未挑戦のみ</div>
+        <div class="menu-desc">まだ答えていない単語だけ</div>
+      </div>
+      <div class="menu-badge" id="unknownBadge">0</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ STUDY SCREEN ══ -->
+<div class="screen" id="studyScreen">
+  <div class="header">
+    <button class="back-btn" onclick="goMenu()">← メニュー</button>
+    <div class="mode-label" id="modeLabel"></div>
+    <div class="session-badge" id="sessionBadge">— / —</div>
+  </div>
+  <div class="progress-wrap">
+    <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+    <div class="progress-label"><span id="progressLeft">0 / 0</span><span id="progressRight">残り 0枚</span></div>
+  </div>
+  <div class="stats">
+    <div class="stat"><div class="stat-num green" id="statKnown">0</div><div class="stat-label">覚えた</div></div>
+    <div class="stat"><div class="stat-num red"   id="statRetry">0</div><div class="stat-label">要復習</div></div>
+    <div class="stat"><div class="stat-num gray"  id="statTotal">0</div><div class="stat-label">合計</div></div>
+  </div>
+  <div class="card-area">
+    <div class="card" id="card">
+      <div class="swipe-overlay good" id="overlayGood">覚えた ✓</div>
+      <div class="swipe-overlay bad"  id="overlayBad">復習する ↩</div>
+      <div class="card-tag">英語</div>
+      <div class="word"     id="wordEl">---</div>
+      <div class="phonetic" id="phoneticEl"></div>
+      <div class="meaning-wrap"><div class="meaning" id="meaningEl"></div></div>
+      <div class="tap-hint" id="tapHint">タップして意味を見る</div>
+    </div>
+  </div>
+  <div class="swipe-guide">
+    <div class="guide-item"><div class="guide-icon bad">←</div><span>要復習</span></div>
+    <div class="guide-item"><span>覚えた</span><div class="guide-icon good">→</div></div>
+  </div>
+  <div class="actions">
+    <button class="btn btn-bad"  onclick="judge(false)">← 復習</button>
+    <button class="btn btn-skip" onclick="skipCard()">skip</button>
+    <button class="btn btn-good" onclick="judge(true)">覚えた →</button>
+  </div>
+</div>
+
+<script>
+const SHEET_ID = "15BpwIs7lGNiyUAh_LtCcEqYiuLPibMhjpPOdyzjvX50";
+const URLS = [
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`,
+  `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=330002620`
+];
+
+let allWords = [], queue = [], cur = 0, shown = false;
+let knownN = 0, retryN = 0, currentMode = "";
+let stats = JSON.parse(localStorage.getItem("vocabStats") || "{}");
+
+function parseCSV(text) {
+  return text.split(/\r?\n/).slice(1).map(line => {
+    if (!line.trim()) return null;
+    const cols = []; let buf = "", inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQ = !inQ; continue; }
+      if (c === ',' && !inQ) { cols.push(buf.trim()); buf = ""; continue; }
+      buf += c;
+    }
+    cols.push(buf.trim());
+    const word = cols[1] || "", meaning = cols[2] || "";
+    return word ? { word, meaning } : null;
+  }).filter(Boolean);
+}
+
+async function loadAll() {
+  const results = await Promise.all(URLS.map(u => fetch(u).then(r => r.text()).catch(() => "")));
+  return results.flatMap(parseCSV);
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function init() {
+  loadAll().then(data => {
+    allWords = data;
+    document.getElementById("loading").style.display = "none";
+    updateMenuStats();
+  }).catch(() => {
+    document.getElementById("loading").innerHTML =
+      `<p style="color:var(--red);text-align:center;padding:20px;font-size:14px">読み込みに失敗しました。<br>インターネット接続を確認してください。</p>`;
+  });
+}
+
+function updateMenuStats() {
+  const known   = allWords.filter(w => stats[w.word] === 1).length;
+  const retry   = allWords.filter(w => stats[w.word] === 0).length;
+  const unknown = allWords.filter(w => stats[w.word] === undefined).length;
+  document.getElementById("totalKnown").textContent   = known;
+  document.getElementById("totalRetry").textContent   = retry;
+  document.getElementById("totalAll").textContent     = allWords.length;
+  document.getElementById("allBadge").textContent     = allWords.length;
+  document.getElementById("retryBadge").textContent   = retry;
+  document.getElementById("unknownBadge").textContent = unknown;
+  document.getElementById("menuSub").textContent      = `全${allWords.length}語 ・ 覚えた${known}語`;
+}
+
+const MODE_NAMES = { random10:'ランダム10問', random30:'ランダム30問', all:'全単語', retry:'要復習のみ', unknown:'未挑戦のみ' };
+
+function startMode(mode) {
+  currentMode = mode; knownN = 0; retryN = 0;
+  let pool = [];
+  if      (mode === 'random10') pool = shuffle(allWords).slice(0, 10);
+  else if (mode === 'random30') pool = shuffle(allWords).slice(0, 30);
+  else if (mode === 'all')      pool = shuffle(allWords);
+  else if (mode === 'retry') {
+    pool = shuffle(allWords.filter(w => stats[w.word] === 0));
+    if (!pool.length) { alert('要復習の単語がありません。まず学習してみましょう！'); return; }
+  } else if (mode === 'unknown') {
+    pool = shuffle(allWords.filter(w => stats[w.word] === undefined));
+    if (!pool.length) { alert('未挑戦の単語はありません。全単語を学習済みです！'); return; }
+  }
+  queue = pool; cur = 0;
+  document.getElementById("modeLabel").textContent = MODE_NAMES[mode];
+  document.getElementById("statTotal").textContent = queue.length;
+  showScreen("studyScreen");
+  showCard();
+}
+
+function showScreen(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
+
+function goMenu() {
+  document.getElementById("doneScreen").style.display = "none";
+  updateMenuStats();
+  showScreen("menuScreen");
+}
+
+function showCard() {
+  if (cur >= queue.length) { showDone(); return; }
+  const w = queue[cur]; shown = false;
+  document.getElementById("wordEl").textContent    = w.word;
+  document.getElementById("meaningEl").textContent = w.meaning;
+  document.getElementById("meaningEl").classList.remove("visible");
+  document.getElementById("tapHint").style.opacity = "1";
+  const total = queue.length, pct = Math.round((cur / total) * 100);
+  document.getElementById("progressFill").style.width  = pct + "%";
+  document.getElementById("progressLeft").textContent  = `${cur} / ${total}`;
+  document.getElementById("progressRight").textContent = `残り ${total - cur}枚`;
+  document.getElementById("sessionBadge").textContent  = `${cur + 1} / ${total}`;
+  document.getElementById("statKnown").textContent = knownN;
+  document.getElementById("statRetry").textContent = retryN;
+}
+
+function revealMeaning() {
+  if (shown) return; shown = true;
+  document.getElementById("meaningEl").classList.add("visible");
+  document.getElementById("tapHint").style.opacity = "0";
+  speak(queue[cur].word);
+}
+
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US"; u.rate = 0.9;
+  speechSynthesis.speak(u);
+}
+
+function judge(good) {
+  const w = queue[cur];
+  if (good) { stats[w.word] = 1; knownN++; animCard("anim-right"); }
+  else      { stats[w.word] = 0; retryN++; queue.push(w); animCard("anim-left"); }
+  localStorage.setItem("vocabStats", JSON.stringify(stats));
+  setTimeout(() => { cur++; showCard(); }, 300);
+}
+
+function skipCard() {
+  animCard("anim-left");
+  setTimeout(() => { cur++; showCard(); }, 300);
+}
+
+function animCard(cls) {
+  const card = document.getElementById("card");
+  card.classList.add(cls);
+  setTimeout(() => {
+    card.classList.remove(cls);
+    card.classList.add("anim-in");
+    setTimeout(() => card.classList.remove("anim-in"), 350);
+  }, 300);
+}
+
+function showDone() {
+  document.getElementById("doneMsg").textContent =
+    `【${MODE_NAMES[currentMode]}】\n覚えた: ${knownN}語　要復習: ${retryN}語`;
+  document.getElementById("doneScreen").style.display = "flex";
+}
+
+function restartSame() {
+  document.getElementById("doneScreen").style.display = "none";
+  startMode(currentMode);
+}
+
+// ── Swipe ────────────────────────────────
+let startX = 0, startY = 0, dragging = false;
+const card  = document.getElementById("card");
+const oGood = document.getElementById("overlayGood");
+const oBad  = document.getElementById("overlayBad");
+
+card.addEventListener("touchstart", e => {
+  startX = e.touches[0].clientX; startY = e.touches[0].clientY; dragging = false;
+}, { passive: true });
+
+card.addEventListener("touchmove", e => {
+  const dx = e.touches[0].clientX - startX;
+  if (Math.abs(dx) < 8 && !dragging) return;
+  dragging = true;
+  card.style.transform = `translateX(${dx * 0.4}px) rotate(${dx * 0.02}deg)`;
+  const str = Math.min(Math.abs(dx) / 80, 1);
+  if      (dx >  20) { oGood.style.opacity = str; oBad.style.opacity  = 0; }
+  else if (dx < -20) { oBad.style.opacity  = str; oGood.style.opacity = 0; }
+  else               { oGood.style.opacity = oBad.style.opacity = 0; }
+}, { passive: true });
+
+card.addEventListener("touchend", e => {
+  const dx = e.changedTouches[0].clientX - startX;
+  const dy = e.changedTouches[0].clientY - startY;
+  card.style.transform = "";
+  oGood.style.opacity = oBad.style.opacity = 0;
+  if (!dragging && Math.abs(dx) < 10 && Math.abs(dy) < 10) { revealMeaning(); return; }
+  if (dx >  60) { judge(true);  return; }
+  if (dx < -60) { judge(false); return; }
+}, { passive: true });
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+
+init();
+</script>
+</body>
+</html>
